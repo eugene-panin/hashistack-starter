@@ -1,11 +1,8 @@
-.PHONY: test test-mail test-minimal
+.PHONY: test test-mail test-minimal test-ssh
 
 BOILERPLATE ?= boilerplate
 
-test: test-mail test-minimal
+test: test-mail test-minimal test-ssh
 
-test-mail:
-	out=$$(mktemp -d) && $(BOILERPLATE) --template-url template --output-folder $$out --var-file test/mail.yml --non-interactive && test/check.sh $$out
-
-test-minimal:
-	out=$$(mktemp -d) && $(BOILERPLATE) --template-url template --output-folder $$out --var-file test/minimal.yml --non-interactive && test/check.sh $$out
+test-mail test-minimal test-ssh: test-%:
+	out=$$(mktemp -d) && $(BOILERPLATE) --template-url template --output-folder $$out --var-file test/$*.yml --non-interactive && test/check.sh $$out

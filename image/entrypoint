@@ -1,0 +1,14 @@
+#!/bin/sh
+set -eu
+
+if [ "$#" -gt 0 ]; then
+  exec "$@"
+fi
+
+if [ ! -f /work/Makefile ]; then
+  boilerplate --template-url /opt/hashistack-starter/template --output-folder /work
+  echo
+  echo "Generated in the current directory. Follow README.md from step 1; every make target runs here."
+fi
+
+exec bash

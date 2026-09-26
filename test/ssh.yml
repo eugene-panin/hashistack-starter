@@ -1,0 +1,9 @@
+ProjectName: own-server
+Provider: ssh
+ServerIp: 127.0.0.1
+BootstrapUser: root
+InfraDomain: infra.example.org
+AcmeEmail: admin@example.org
+MailEnabled: true
+MailHostname: mail.example.org
+MailDomains: [example.org]

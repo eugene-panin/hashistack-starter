@@ -4,6 +4,7 @@ name: ci
 on:
   push:
     branches: [main]
+    tags: ["v*"]
     paths-ignore:
       - README.md
       - CHANGELOG.md
@@ -20,11 +21,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  BOILERPLATE_VERSION: v0.16.0
-  BOILERPLATE_SHA256: e34f6c1ec7af9267703bf2d910f49f4f603a7b80876889eed38db0a751100a1a
-  CONFTEST_VERSION: 0.70.1
-  CONFTEST_SHA256: 613d124b8f6c1f3cee890491f7ab19114cca5a2102ca47cb2e6c35b4c23f9c8a
-  ANSIBLE_CORE_VERSION: 2.21.4
+  IMAGE: ghcr.io/eugene-panin/hashistack-starter
 
 jobs:
   test:
@@ -33,34 +30,88 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        answers: [mail, minimal]
+        answers: [mail, minimal, ssh]
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-go@v7
-        with:
-          go-version-file: template/static/ops/go.mod
-          cache-dependency-path: template/static/ops/go.sum
+      - uses: docker/setup-buildx-action@v4
 
-      - uses: opentofu/setup-opentofu@v2
+      - name: Build the image
+        uses: docker/build-push-action@v7
         with:
-          tofu_wrapper: false
-
-      - name: Install boilerplate, conftest and ansible-core
-        run: |
-          mkdir -p "$HOME/bin"
-          curl -sSLo "$HOME/bin/boilerplate" "https://github.com/gruntwork-io/boilerplate/releases/download/$BOILERPLATE_VERSION/boilerplate_linux_amd64"
-          echo "$BOILERPLATE_SHA256  $HOME/bin/boilerplate" | sha256sum -c -
-          chmod +x "$HOME/bin/boilerplate"
-          curl -sSLo /tmp/conftest.tar.gz "https://github.com/open-policy-agent/conftest/releases/download/v$CONFTEST_VERSION/conftest_${CONFTEST_VERSION}_Linux_x86_64.tar.gz"
-          echo "$CONFTEST_SHA256  /tmp/conftest.tar.gz" | sha256sum -c -
-          tar -xzf /tmp/conftest.tar.gz -C "$HOME/bin" conftest
-          pipx install "ansible-core==$ANSIBLE_CORE_VERSION"
-          pipx inject ansible-core pyyaml
-          echo "$HOME/bin" >> "$GITHUB_PATH"
+          context: .
+          load: true
+          tags: starter:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Check the test scripts
-        run: shellcheck -S warning test/check.sh
+        run: docker run --rm -v "$PWD:/src" -w /src starter:test shellcheck -S warning test/check.sh test/bootstrap.sh image/entrypoint
 
-      - name: Render and check
-        run: make test-${{ matrix.answers }}
+      - name: Render and check inside the image
+        run: docker run --rm -v "$PWD:/src" -w /src starter:test make test-${{ matrix.answers }}
+
+  bootstrap:
+    name: bootstrap an ssh server
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Build the image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          load: true
+          tags: starter:test
+          cache-from: type=gha
+
+      - name: Start an Ubuntu server that only root can log in to
+        run: |
+          ssh-keygen -q -t ed25519 -N "" -f "$RUNNER_TEMP/id_ed25519"
+          cp "$RUNNER_TEMP/id_ed25519.pub" test/target/authorized_keys
+          docker build -t target:test test/target
+          docker run -d --name target --privileged --cgroupns=host \
+            -v /sys/fs/cgroup:/sys/fs/cgroup:rw -p 127.0.0.1:2222:22 target:test
+          for _ in $(seq 30); do ssh-keyscan -p 2222 127.0.0.1 >/dev/null 2>&1 && break; sleep 2; done
+
+      - name: Render the ssh answers and bootstrap the server from the image
+        run: |
+          docker run --rm --network host -v "$PWD:/src" -v "$RUNNER_TEMP:/keys" -w /src starter:test bash -c '
+            out=$(mktemp -d)
+            boilerplate --template-url template --output-folder "$out" --var-file test/ssh.yml \
+              --var SshPublicKeyPath=/keys/id_ed25519.pub --non-interactive
+            (cd "$out/ansible" && ansible-galaxy collection install -r requirements.yml -p .collections >/dev/null)
+            test/bootstrap.sh "$out" /keys/id_ed25519 2222'
+
+  publish:
+    name: publish the image
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [test, bootstrap]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: docker/setup-qemu-action@v4
+
+      - uses: docker/setup-buildx-action@v4
+
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:${{ github.ref_name }}
+            ${{ env.IMAGE }}:latest
+          cache-from: type=gha
