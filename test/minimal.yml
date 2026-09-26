@@ -1,3 +1,4 @@
 ProjectName: bare-stack
+Provider: ovh
 InfraDomain: infra.example.net
 AcmeEmail: admin@example.net
