@@ -1,0 +1,15 @@
+stack:
+  infra_zone: {{ .InfraDomain }}
+  infra_cidr: {{ .WireguardNetwork }}
+  public_host_network: public
+  public_jobs:
+    - traefik
+    - mail
+  allowed_caps:
+    - net_bind_service
+  protected_types:
+    - vault_mount
+    - vault_kv_secret_v2
+    - nomad_dynamic_host_volume
+    - nomad_csi_volume
+  allow_destroy: []

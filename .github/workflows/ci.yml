@@ -1,0 +1,66 @@
+---
+name: ci
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - README.md
+      - CHANGELOG.md
+      - LICENSE
+  pull_request:
+    paths-ignore:
+      - README.md
+      - CHANGELOG.md
+      - LICENSE
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  BOILERPLATE_VERSION: v0.16.0
+  BOILERPLATE_SHA256: e34f6c1ec7af9267703bf2d910f49f4f603a7b80876889eed38db0a751100a1a
+  CONFTEST_VERSION: 0.70.1
+  CONFTEST_SHA256: 613d124b8f6c1f3cee890491f7ab19114cca5a2102ca47cb2e6c35b4c23f9c8a
+  ANSIBLE_CORE_VERSION: 2.21.4
+
+jobs:
+  test:
+    name: test (${{ matrix.answers }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        answers: [mail, minimal]
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: template/static/ops/go.mod
+          cache-dependency-path: template/static/ops/go.sum
+
+      - uses: opentofu/setup-opentofu@v2
+        with:
+          tofu_wrapper: false
+
+      - name: Install boilerplate, conftest and ansible-core
+        run: |
+          mkdir -p "$HOME/bin"
+          curl -sSLo "$HOME/bin/boilerplate" "https://github.com/gruntwork-io/boilerplate/releases/download/$BOILERPLATE_VERSION/boilerplate_linux_amd64"
+          echo "$BOILERPLATE_SHA256  $HOME/bin/boilerplate" | sha256sum -c -
+          chmod +x "$HOME/bin/boilerplate"
+          curl -sSLo /tmp/conftest.tar.gz "https://github.com/open-policy-agent/conftest/releases/download/v$CONFTEST_VERSION/conftest_${CONFTEST_VERSION}_Linux_x86_64.tar.gz"
+          echo "$CONFTEST_SHA256  /tmp/conftest.tar.gz" | sha256sum -c -
+          tar -xzf /tmp/conftest.tar.gz -C "$HOME/bin" conftest
+          pipx install "ansible-core==$ANSIBLE_CORE_VERSION"
+          pipx inject ansible-core pyyaml
+          echo "$HOME/bin" >> "$GITHUB_PATH"
+
+      - name: Check the test scripts
+        run: shellcheck -S warning test/check.sh
+
+      - name: Render and check
+        run: make test-${{ matrix.answers }}

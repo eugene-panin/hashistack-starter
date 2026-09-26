@@ -1,0 +1,6 @@
+---
+collections:
+  - name: eugene_panin.base
+    version: 0.4.1
+  - name: eugene_panin.hashistack
+    version: 0.6.0

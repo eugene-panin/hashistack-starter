@@ -1,0 +1,106 @@
+---
+- name: Provision the stack host
+  hosts: stack
+  gather_facts: true
+  tasks:
+    - name: Issue the WireGuard client keys
+      ansible.builtin.include_role:
+        name: eugene_panin.base.wireguard_client
+
+    - name: Configure the WireGuard interface
+      ansible.builtin.include_role:
+        name: eugene_panin.base.wireguard
+      vars:
+        wireguard_peers: "{{ wireguard_client_peers }}"
+
+    - name: Render the WireGuard client configurations
+      ansible.builtin.include_role:
+        name: eugene_panin.base.wireguard_client
+
+    - name: Fetch the client configurations
+      ansible.builtin.fetch:
+        src: "{{ wireguard_client_dir }}/{{ item.name }}.conf"
+        dest: "{{ stack_client_dir }}/{{ item.name }}.conf"
+        flat: true
+      loop: "{{ wireguard_client_list }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: Keep the fetched configurations readable only by their owner
+      ansible.builtin.file:
+        path: "{{ stack_client_dir }}/{{ item.name }}.conf"
+        mode: '0600'
+      loop: "{{ wireguard_client_list }}"
+      loop_control:
+        label: "{{ item.name }}"
+      delegate_to: localhost
+      become: false
+
+    - name: Deny incoming except SSH, WireGuard and the declared ports
+      ansible.builtin.include_role:
+        name: eugene_panin.base.firewall
+
+    - name: Check whether Consul is installed yet
+      ansible.builtin.stat:
+        path: /usr/local/bin/consul
+      register: _stack_consul_binary
+      check_mode: false
+
+    - name: Run the Consul agent
+      ansible.builtin.include_role:
+        name: eugene_panin.hashistack.consul
+
+    - name: Ensure the policy the Nomad agent registers with
+      community.general.consul_policy:
+        name: nomad-agent
+        description: Nomad agents registering themselves and their workloads
+        rules: |
+          agent_prefix "" {
+            policy = "read"
+          }
+          node_prefix "" {
+            policy = "write"
+          }
+          service_prefix "" {
+            policy = "write"
+          }
+        token: "{{ consul_acl_bootstrap_token }}"
+        scheme: https
+        host: 127.0.0.1
+        port: 8501
+        ca_path: /etc/consul.d/tls/ca.pem
+        state: present
+      when: not ansible_check_mode or _stack_consul_binary.stat.exists
+      no_log: true
+
+    - name: Ensure the Nomad agent's Consul token
+      community.general.consul_token:
+        accessor_id: "{{ 'nomad-agent' | to_uuid }}"
+        secret_id: "{{ nomad_consul_token }}"
+        description: Nomad agent
+        policies:
+          - name: nomad-agent
+        token: "{{ consul_acl_bootstrap_token }}"
+        scheme: https
+        host: 127.0.0.1
+        port: 8501
+        ca_path: /etc/consul.d/tls/ca.pem
+        state: present
+      when: not ansible_check_mode or _stack_consul_binary.stat.exists
+      no_log: true
+
+    - name: Resolve Consul names on the host and for the tunnel
+      ansible.builtin.include_role:
+        name: eugene_panin.hashistack.consul_dns
+
+    - name: Run Vault
+      ansible.builtin.include_role:
+        name: eugene_panin.hashistack.vault
+
+    - name: Run Docker for the Nomad client
+      ansible.builtin.include_role:
+        name: eugene_panin.base.docker
+
+    - name: Run the Nomad agent
+      ansible.builtin.include_role:
+        name: eugene_panin.hashistack.nomad

@@ -1,0 +1,40 @@
+---
+ansible_user: {{ .OpsUser }}
+
+stack_public_interface: {{ .PublicInterface }}
+
+wireguard_address: {{ .ServerAddress }}/{{ index (splitList "/" .WireguardNetwork) 1 }}
+wireguard_client_routes: {{ .WireguardNetwork }}
+wireguard_client_list:
+{{- $prefix := regexReplaceAll "\\.[0-9]+$" .ServerAddress "" }}
+{{- range $i, $name := .WireguardClients }}
+  - name: {{ $name }}
+    address: {{ $prefix }}.{{ add $i 2 }}/32
+{{- end }}
+
+consul_datacenter: {{ .ProjectName }}
+nomad_datacenter: {{ .ProjectName }}
+
+firewall_allow:
+  - port: 80
+    interface: {{ .PublicInterface }}
+    comment: HTTP
+  - port: 443
+    interface: {{ .PublicInterface }}
+    comment: HTTPS
+{{- if .MailEnabled }}
+  - port: 25
+    interface: {{ .PublicInterface }}
+    comment: SMTP
+  - port: 465
+    interface: {{ .PublicInterface }}
+    comment: SMTP submission, implicit TLS
+  - port: 587
+    interface: {{ .PublicInterface }}
+    comment: SMTP submission, STARTTLS
+  - port: 993
+    interface: {{ .PublicInterface }}
+    comment: IMAP, implicit TLS
+{{- end }}
+  - interface: nomad
+    comment: Nomad bridge, jobs reaching Consul, Vault and Nomad on the host

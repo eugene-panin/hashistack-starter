@@ -1,0 +1,9 @@
+ProjectName: demo-stack
+InfraDomain: infra.example.com
+AcmeEmail: admin@example.com
+WireguardClients: [laptop, phone]
+MailEnabled: true
+MailHostname: mail.example.com
+MailDomains: [example.com, example.org, infra.example.com, example.es]
+Mailboxes: [info, sales]
+ManualDnsDomains: [example.es]

@@ -1,0 +1,30 @@
+---
+- name: Check that every variable the roles read resolves
+  hosts: vps
+  gather_facts: false
+  connection: local
+  tasks:
+    - name: Assert the generated secrets and the stack settings
+      ansible.builtin.assert:
+        that:
+          - stack_address == wireguard_address.split('/')[0]
+          - consul_gossip_keys | length == 1
+          - consul_gossip_keys[0] | b64decode | length == 32
+          - nomad_gossip_keys[0] | b64decode | length == 32
+          - consul_acl_bootstrap_token | length == 36
+          - consul_acl_agent_token | length == 36
+          - nomad_consul_token | length == 36
+          - "'BEGIN PRIVATE KEY' in consul_pki_ca_key"
+          - consul_pki_ca_cert == nomad_pki_ca_cert
+          - nomad_host_networks[0].public.interface == stack_public_interface
+          - wireguard_client_list | length > 0
+          - firewall_allow | selectattr('interface', 'equalto', 'nomad') | list | length == 1
+        quiet: true
+
+    - name: Assert the Vault keys, once imported
+      ansible.builtin.assert:
+        that:
+          - vault_unseal_keys == expected_unseal_keys | default([])
+          - vault_root_token | default('') == expected_root_token | default('')
+        quiet: true
+      when: check_vault_import | default(false) | bool

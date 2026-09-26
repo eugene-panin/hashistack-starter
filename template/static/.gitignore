@@ -1,0 +1,8 @@
+*.retry
+.DS_Store
+__pycache__/
+.mypy_cache/
+secrets/*
+!secrets/*.example
+.venv/
+/bin/ovhctl

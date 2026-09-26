@@ -1,0 +1,57 @@
+---
+ansible_become: true
+
+stack_client_dir: "{{ playbook_dir }}/../clients/"
+stack_address: "{{ wireguard_address | split('/') | first }}"
+stack_ca_cert: "{{ lookup('ansible.builtin.file', playbook_dir ~ '/../files/ca.pem') }}"
+stack_ca_key: "{{ vault_stack_ca_key }}"
+
+wireguard_interface: wg0
+wireguard_listen_port: 51820
+wireguard_manage_firewall: true
+wireguard_allow_mesh_traffic: true
+wireguard_client_dir: /etc/wireguard/clients
+wireguard_client_endpoint: "{{ ansible_host }}:{{ wireguard_listen_port }}"
+wireguard_client_dns:
+  - "{{ stack_address }}"
+
+consul_version: 2.0.4
+consul_server: true
+consul_bootstrap_expect: 1
+consul_bind_address: "{{ stack_address }}"
+consul_gossip_keys: >-
+  {{ [vault_consul_gossip_key]
+     + ([vault_consul_gossip_key_previous] if vault_consul_gossip_key_previous | default('') | length > 0 else []) }}
+consul_acl_bootstrap_token: "{{ vault_consul_acl_bootstrap_token }}"
+consul_acl_dns_token: "{{ vault_consul_acl_dns_token }}"
+consul_dns_domains:
+  - consul
+consul_dns_listen_addresses:
+  - "{{ stack_address }}"
+consul_pki_ca_cert: "{{ stack_ca_cert }}"
+consul_pki_ca_key: "{{ stack_ca_key }}"
+
+vault_version: 2.1.1
+vault_bind_address: "{{ stack_address }}"
+vault_pki_ca_cert: "{{ stack_ca_cert }}"
+vault_pki_ca_key: "{{ stack_ca_key }}"
+vault_init_output_path: "{{ playbook_dir }}/../../secrets/vault/init.json"
+
+nomad_version: 2.0.7
+nomad_region: global
+nomad_bind_address: "{{ stack_address }}"
+nomad_pki_ca_cert: "{{ stack_ca_cert }}"
+nomad_pki_ca_key: "{{ stack_ca_key }}"
+nomad_acl_bootstrap_token: "{{ vault_nomad_acl_bootstrap_token }}"
+nomad_gossip_keys:
+  - "{{ vault_nomad_gossip_key }}"
+nomad_cni: true
+nomad_network_interface: "{{ wireguard_interface }}"
+nomad_host_networks:
+  - public:
+      interface: "{{ stack_public_interface }}"
+nomad_consul_address: 127.0.0.1:8501
+nomad_consul_ca_cert: "{{ stack_ca_cert }}"
+nomad_consul_token: "{{ vault_nomad_consul_token }}"
+nomad_vault_address: "https://{{ stack_address }}:8200"
+nomad_vault_ca_cert: "{{ stack_ca_cert }}"
