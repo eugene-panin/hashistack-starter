@@ -12,9 +12,9 @@ ssh_as() {
 
 bootstrap() {
   (cd "$out/ansible" && STACK_HOST=127.0.0.1 ansible-playbook playbooks/bootstrap.yml \
-    -e ansible_port="$port" \
-    -e ansible_ssh_private_key_file="$key" \
-    -e ansible_ssh_common_args="-o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=$out/.known_hosts")
+    -e "$(jq -cn --argjson port "$port" --arg key "$key" --arg known "$out/.known_hosts" \
+      '{ansible_port: $port, ansible_ssh_private_key_file: $key,
+        ansible_ssh_common_args: "-o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=\($known)"}')")
 }
 
 echo "== root can log in before the bootstrap"

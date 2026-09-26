@@ -121,7 +121,7 @@ vps-stop: build
 
 bootstrap: provision-deps
 	cd $(ANSIBLE_DIR) && STACK_HOST="$(STACK_HOST)" ansible-playbook playbooks/bootstrap.yml \
-	  -e ansible_ssh_common_args='-o StrictHostKeyChecking=accept-new' \
+	  -e '{"ansible_ssh_common_args": "-o StrictHostKeyChecking=accept-new"}' \
 	  $(if $(filter 1,$(ASK_PASS)),--ask-pass --ask-become-pass,)
 {{- end }}
 
