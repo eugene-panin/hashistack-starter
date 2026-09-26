@@ -1,9 +1,9 @@
 ---
 ansible_become: true
 
-stack_client_dir: "{{ playbook_dir }}/../clients/"
+stack_client_dir: "{{ inventory_dir }}/../clients/"
 stack_address: "{{ wireguard_address | split('/') | first }}"
-stack_ca_cert: "{{ lookup('ansible.builtin.file', playbook_dir ~ '/../files/ca.pem') }}"
+stack_ca_cert: "{{ lookup('ansible.builtin.file', inventory_dir ~ '/../files/ca.pem') }}"
 stack_ca_key: "{{ vault_stack_ca_key }}"
 
 wireguard_interface: wg0
@@ -35,7 +35,7 @@ vault_version: 2.1.1
 vault_bind_address: "{{ stack_address }}"
 vault_pki_ca_cert: "{{ stack_ca_cert }}"
 vault_pki_ca_key: "{{ stack_ca_key }}"
-vault_init_output_path: "{{ playbook_dir }}/../../secrets/vault/init.json"
+vault_init_output_path: "{{ inventory_dir }}/../../secrets/vault/init.json"
 
 nomad_version: 2.0.7
 nomad_region: global

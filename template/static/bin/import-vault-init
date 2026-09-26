@@ -4,7 +4,7 @@ set -euo pipefail
 root=$(cd "$(dirname "$0")/.." && pwd)
 group=$root/ansible/inventory/group_vars/stack/vault.yml
 init=$root/secrets/vault/init.json
-password_file=${ANSIBLE_VAULT_PASSWORD_FILE:?run through make, or set ANSIBLE_VAULT_PASSWORD_FILE}
+: "${ANSIBLE_VAULT_PASSWORD_FILE:?run through make, or set ANSIBLE_VAULT_PASSWORD_FILE}"
 
 [[ -f $init ]] || { echo "$init not found: it appears after the first make provision initialises Vault" >&2; exit 1; }
 
@@ -12,7 +12,7 @@ umask 077
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 
-ansible-vault view --vault-password-file "$password_file" "$group" >"$work/group.yml"
+ansible-vault view "$group" >"$work/group.yml"
 if grep -q '^vault_root_token:' "$work/group.yml"; then
   echo "$group already holds a Vault root token: nothing imported" >&2
   exit 1
@@ -23,7 +23,7 @@ fi
   echo "vault_root_token: \"$(jq -r '.root_token' "$init")\""
 } >>"$work/group.yml"
 
-ansible-vault encrypt --vault-password-file "$password_file" --output "$work/group.enc" "$work/group.yml"
+ansible-vault encrypt --output "$work/group.enc" "$work/group.yml"
 mv "$work/group.enc" "$group"
 rm -f "$init"
 

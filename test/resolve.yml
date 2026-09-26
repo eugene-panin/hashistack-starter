@@ -9,8 +9,8 @@
         that:
           - stack_address == wireguard_address.split('/')[0]
           - consul_gossip_keys | length == 1
-          - consul_gossip_keys[0] | b64decode | length == 32
-          - nomad_gossip_keys[0] | b64decode | length == 32
+          - consul_gossip_keys[0] is match('^[A-Za-z0-9+/]{43}=$')
+          - nomad_gossip_keys[0] is match('^[A-Za-z0-9+/]{43}=$')
           - consul_acl_bootstrap_token | length == 36
           - consul_acl_agent_token | length == 36
           - nomad_consul_token | length == 36
