@@ -1,5 +1,10 @@
 ---
 ansible_user: {{ .OpsUser }}
+{{- if eq .Provider "ssh" }}
+stack_ops_user: {{ .OpsUser }}
+stack_bootstrap_user: {{ .BootstrapUser }}
+stack_ssh_public_key_path: {{ .SshPublicKeyPath }}
+{{- end }}
 
 stack_public_interface: {{ .PublicInterface }}
 

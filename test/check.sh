@@ -12,8 +12,14 @@ step() { printf '\n== %s\n' "$*"; }
 step shellcheck
 shellcheck -S warning "$out"/bin/* "$out/infra/opentofu/tofu.sh" "$out/policy/check.sh"
 
-step "ovhctl builds and passes its tests"
-(cd "$out/ops" && go vet ./... && go test -count=1 ./...)
+if [[ -d $out/ops ]]; then
+  step "ovhctl builds and passes its tests"
+  (cd "$out/ops" && go vet ./... && go test -count=1 ./...)
+else
+  step "no ovhctl outside the ovh provider"
+  [[ ! -e $out/ovh-stack.hcl ]] || { echo "ovh-stack.hcl rendered for another provider" >&2; exit 1; }
+  [[ -f $out/ansible/playbooks/bootstrap.yml ]] || { echo "bootstrap.yml missing" >&2; exit 1; }
+fi
 
 step "policy tests"
 conftest verify --policy "$out/policy" --data "$out/policy/data"
@@ -39,7 +45,9 @@ step "every variable the roles read resolves"
 (cd "$out/ansible" && STACK_HOST=192.0.2.10 ansible-playbook "$here/resolve.yml" --check --limit vps)
 
 step "playbook syntax"
-(cd "$out/ansible" && STACK_HOST=192.0.2.10 ansible-playbook playbooks/provision.yml --syntax-check)
+for playbook in "$out"/ansible/playbooks/*.yml; do
+  (cd "$out/ansible" && STACK_HOST=192.0.2.10 ansible-playbook "$playbook" --syntax-check)
+done
 
 step "the Vault init output moves into the vault file"
 mkdir -p "$out/secrets/vault"

@@ -1,0 +1,78 @@
+---
+- name: Create the ops user as the user the server came with
+  hosts: stack
+  become: true
+  gather_facts: false
+  ignore_unreachable: true
+  vars:
+    ansible_user: "{{ stack_bootstrap_user }}"
+  tasks:
+    - name: Ensure the ops user exists
+      ansible.builtin.user:
+        name: "{{ stack_ops_user }}"
+        shell: /bin/bash
+        groups: sudo
+        append: true
+        create_home: true
+        state: present
+
+    - name: Ensure the ops user logs in with the declared key
+      ansible.posix.authorized_key:
+        user: "{{ stack_ops_user }}"
+        key: "{{ lookup('ansible.builtin.file', stack_ssh_public_key_path | expanduser) }}"
+        exclusive: true
+        state: present
+
+    - name: Let the ops user use sudo without a password
+      ansible.builtin.copy:
+        dest: "/etc/sudoers.d/90-{{ stack_ops_user }}"
+        content: "{{ stack_ops_user }} ALL=(ALL) NOPASSWD:ALL\n"
+        owner: root
+        group: root
+        mode: '0440'
+        validate: /usr/sbin/visudo -cf %s
+
+- name: Close every login but the ops user's key, connecting as the ops user
+  hosts: stack
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Ensure unattended upgrades and fail2ban are installed
+      ansible.builtin.apt:
+        name:
+          - unattended-upgrades
+          - fail2ban
+        state: present
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Enable unattended upgrades
+      ansible.builtin.copy:
+        dest: /etc/apt/apt.conf.d/20auto-upgrades
+        content: |
+          APT::Periodic::Update-Package-Lists "1";
+          APT::Periodic::Unattended-Upgrade "1";
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Allow only the ops user's key to log in over SSH
+      ansible.builtin.copy:
+        dest: /etc/ssh/sshd_config.d/99-hardening.conf
+        content: |
+          PermitRootLogin no
+          PasswordAuthentication no
+          KbdInteractiveAuthentication no
+          PubkeyAuthentication yes
+          AllowUsers {{ stack_ops_user }}
+        owner: root
+        group: root
+        mode: '0644'
+        validate: /usr/sbin/sshd -t -f %s
+      notify: Restart ssh
+
+  handlers:
+    - name: Restart ssh
+      ansible.builtin.service:
+        name: ssh
+        state: restarted
