@@ -2,110 +2,110 @@ required_version: ">= 0.16.0, < 1.0.0"
 
 variables:
   - name: ProjectName
-    description: Name of the new repository, also the Consul and Nomad datacenter and the ~/.config directory of its local files.
+    description: A short name for your setup, in lowercase, such as my-cloud.
     order: 1
     validations:
       - required
       - regex("^[a-z][a-z0-9-]{1,40}$")
 
   - name: Provider
-    description: "Where the server comes from: ovh rebuilds an OVH VPS through its API; ssh takes any Ubuntu server you can already log in to."
+    description: "ssh for any server you can log in to. ovh only if it is an OVH VPS and you want it reinstalled through the OVH API."
     type: enum
-    options: [ovh, ssh]
-    default: ovh
+    options: [ssh, ovh]
+    default: ssh
     order: 2
 
   - name: ServerIp
-    description: Public address of the server (ssh only; ovh finds it through the API).
+    description: The IP address of your server, from your provider's panel (with ovh, press Enter).
     default: ""
     order: 3
 
   - name: BootstrapUser
-    description: User you log in to the server with today, root or a sudo user (ssh only).
+    description: The user you log in to the server with today, usually root (with ovh, press Enter).
     default: root
     order: 4
 
   - name: InfraDomain
-    description: Domain of the internal names, whose DNS is on Cloudflare. Consul, Nomad and Vault answer as consul., nomad. and vault.<domain> through WireGuard.
+    description: A whole domain on Cloudflare for the admin pages, such as example-admin.com; they will open as nomad., consul. and vault.<domain> from your laptop only.
     order: 5
     validations:
       - required
       - regex("^[a-z0-9-]+(\\.[a-z0-9-]+)+$")
 
   - name: AcmeEmail
-    description: Contact address for the Let's Encrypt accounts.
+    description: Your email. Let's Encrypt, which issues the HTTPS certificates, writes there if one is about to expire.
     order: 6
     validations:
       - required
       - email
 
-  - name: ServerAddress
-    description: WireGuard address of the server, the first host of WireguardNetwork. Consul, Vault and Nomad listen on it.
-    default: 10.77.0.1
+  - name: MailEnabled
+    description: Should the server handle mail for your domains?
+    type: bool
+    default: false
     order: 7
+
+  - name: MailHostname
+    description: The name of the mail server, inside one of your mail domains, such as mail.example.com (without mail, press Enter).
+    default: mail.example.com
+    order: 8
+
+  - name: MailDomains
+    description: The domains to receive mail for (without mail, press Enter).
+    type: list
+    default: [example.com]
+    order: 9
+
+  - name: Mailboxes
+    description: The mailboxes each mail domain gets; the first one also receives postmaster@ and abuse@ (without mail, press Enter).
+    type: list
+    default: [info]
+    order: 10
+
+  - name: ManualDnsDomains
+    description: Mail domains that are not on Cloudflare; you will get a list of records to create for them by hand (usually press Enter).
+    type: list
+    default: []
+    order: 11
+
+  - name: WireguardClients
+    description: The devices that may open the admin pages, such as laptop and phone; each gets a file to import into the WireGuard app.
+    type: list
+    default: [laptop]
+    order: 12
+
+  - name: SshPublicKeyPath
+    description: Your SSH key (advanced, press Enter).
+    default: ~/.ssh/id_ed25519.pub
+    order: 13
+
+  - name: OpsUser
+    description: The admin user created on the server (advanced, press Enter).
+    default: ops
+    order: 14
+
+  - name: PublicInterface
+    description: The server's network interface to the internet (advanced, press Enter; ip -brief address on the server shows it).
+    default: '{{ if eq .Provider "ovh" }}ens3{{ else }}eth0{{ end }}'
+    order: 15
+
+  - name: ServerAddress
+    description: The server's address in the private network (advanced, press Enter).
+    default: 10.77.0.1
+    order: 16
     validations:
       - regex("^[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.1$")
 
   - name: WireguardNetwork
-    description: WireGuard network, a /24 that holds ServerAddress.
+    description: The private network, a /24 that holds ServerAddress (advanced, press Enter).
     default: 10.77.0.0/24
-    order: 8
+    order: 17
     validations:
       - regex("^[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.0/24$")
 
-  - name: WireguardClients
-    description: Names of the WireGuard clients, such as your laptop; each gets the next address after ServerAddress.
-    type: list
-    default: [laptop]
-    order: 9
-
-  - name: PublicInterface
-    description: Public network interface of the server (ip -brief address shows it).
-    default: '{{ if eq .Provider "ovh" }}ens3{{ else }}eth0{{ end }}'
-    order: 10
-
   - name: VpsImage
-    description: OVH image the VPS is rebuilt with (ovh only).
+    description: The system the OVH VPS is reinstalled with (advanced, press Enter).
     default: Ubuntu 24.04
-    order: 11
-
-  - name: OpsUser
-    description: User Ansible logs in with; the rebuild or the bootstrap creates it.
-    default: ops
-    order: 12
-
-  - name: SshPublicKeyPath
-    description: SSH public key the ops user logs in with.
-    default: ~/.ssh/id_ed25519.pub
-    order: 13
-
-  - name: MailEnabled
-    description: Run a mail server.
-    type: bool
-    default: false
-    order: 14
-
-  - name: MailHostname
-    description: Host name of the mail server, inside one of MailDomains; its A record and reverse DNS point to the server.
-    default: mail.example.com
-    order: 15
-
-  - name: MailDomains
-    description: Mail domains.
-    type: list
-    default: [example.com]
-    order: 16
-
-  - name: Mailboxes
-    description: Mailboxes every mail domain gets; the first also receives postmaster@ and abuse@.
-    type: list
-    default: [info]
-    order: 17
-
-  - name: ManualDnsDomains
-    description: Mail domains whose DNS is not on Cloudflare; their records are printed to be created by hand.
-    type: list
-    default: []
     order: 18
 
 skip_files:
