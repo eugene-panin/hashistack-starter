@@ -110,7 +110,7 @@ install Boilerplate 0.16 or later and run:
 
 ```bash
 boilerplate \
-  --template-url "github.com/eugene-panin/hashistack-starter//template?ref=v0.2.0" \
+  --template-url "github.com/eugene-panin/hashistack-starter//template?ref=v0.3.0" \
   --output-folder ./my-stack
 ```
 
