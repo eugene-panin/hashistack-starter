@@ -99,7 +99,9 @@ secrets; the logic lives in published pieces it pins:
   and [`eugene_panin.hashistack`](https://github.com/eugene-panin/ansible-collection-hashistack)
   for the host;
 - the OpenTofu module [`eugene-panin/hashistack/nomad`](https://github.com/eugene-panin/terraform-nomad-hashistack)
-  for workload identity, Traefik, mail and DNS;
+  for the platform: workload identity, Traefik and DNS;
+- with mail, the app module [`eugene-panin/stalwart/nomad`](https://github.com/eugene-panin/terraform-nomad-stalwart),
+  the Stalwart mail server as a Nomad job;
 - for OVH, `ovhctl`, a small Go CLI for the OVH API, copied into the
   repository.
 
