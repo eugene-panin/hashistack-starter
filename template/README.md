@@ -223,6 +223,9 @@ keys that must not go there are already excluded:
 | Machine | Ansible, `playbooks/bootstrap.yml` | Creates the ops user and closes every other SSH login |
 {{- end }}
 | Host | Ansible, [`eugene_panin.base`](https://github.com/eugene-panin/ansible-collection-base) and [`eugene_panin.hashistack`](https://github.com/eugene-panin/ansible-collection-hashistack) | WireGuard, firewall, Consul, Vault, Docker, Nomad |
-| Services | OpenTofu, [`eugene-panin/hashistack/nomad`](https://search.opentofu.org/module/eugene-panin/hashistack/nomad) | Workload identity, Traefik{{ if .MailEnabled }}, mail{{ end }}, DNS records in Cloudflare |
+| Platform | OpenTofu, [`eugene-panin/hashistack/nomad`](https://github.com/eugene-panin/terraform-nomad-hashistack) | Workload identity, Traefik, DNS records in Cloudflare |
+{{- if .MailEnabled }}
+| Mail | OpenTofu, [`eugene-panin/stalwart/nomad`](https://github.com/eugene-panin/terraform-nomad-stalwart) | The Stalwart mail server, as a Nomad job on the platform |
+{{- end }}
 
 Every plan passes the Conftest policies in `policy/` before it can be applied.
