@@ -5,12 +5,13 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-27
+
 ### Changed
 
 - Mail is its own module, `eugene-panin/stalwart/nomad`, called next to the
   platform module `eugene-panin/hashistack/nomad` 0.6 only when mail is on.
   It comes from GitHub at v0.1.0 until the OpenTofu registry lists it.
-
 - The README of the starter and of the generated repository are written for
   someone who has never run a server:
   - what you get and what you need, step by step;
